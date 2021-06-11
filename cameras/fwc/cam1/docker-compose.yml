@@ -16,8 +16,8 @@ services:
     profiles: ["sw","hw"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    ports:
-      - "8554:8554" # TCP
+    # ports:
+    #   - "8554:8554"
     environment:
       RTSP_PATHS_AXDSSTREAM_RUNONPUBLISH: '
         /usr/bin/docker-compose
@@ -77,7 +77,7 @@ services:
        -reset_timestamps 1 \
        -segment_time 600 \
        -segment_list_flags +live \
-       -r 25 -g 50 -sc_threshold 0 -flags +cgop -use_wallclock_as_timestamps 1 \
+       -sc_threshold 0 -flags +cgop -use_wallclock_as_timestamps 1 \
        -segment_format_options movflags=+faststart+frag_keyframe+separate_moof+negative_cts_offsets+default_base_moof+empty_moov+delay_moov \
        -metadata title="FWC Camera 1" \
        -metadata location="27.943990579462042 -82.44520192148332" \

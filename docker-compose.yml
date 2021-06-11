@@ -6,13 +6,22 @@ volumes:
 
 services:
 
+  http-hosting:
+    image: "ams:latest"
+    volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+    command: >
+        /usr/bin/docker-compose
+          -f /http/docker-compose.yml
+          up
+
   fwc-cam1:
     image: "ams:latest"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       CAMERA_URI: /sample/coral.mp4
-      CORAL_SPAWN_PREDICT_ENDPOINT: http://bentoml-coral-model.srv.axiomptk/predict
+      CORAL_SPAWN_PREDICT_ENDPOINT: http://coral-spawn-service.local/predict
     command: >
       /usr/bin/docker-compose
         -f /cameras/fwc/cam1/docker-compose.yml
