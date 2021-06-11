@@ -26,7 +26,7 @@ requirements).
 
 You can use this conda environment by doing the following:
 
-    # With your current directy at the root of this repository
+    # With your current directory at the root of this repository
     conda env create
 
     # Activate the environment
@@ -53,6 +53,7 @@ This will:
     configured video stream (taking configuration from the `.env` file at the
     root of this repository).
 
+
 ## Configuration
 
 Configuration for the camera ingestion is driven by the `.env` file at the root
@@ -71,7 +72,7 @@ Descriptions follow:
     scheme.
 
 *   `SW_OR_HW`, determines whether to invoke commands that make use of
-    software-based video trancoding (`sw`) or hardware-based video transcoding
+    software-based video transcoding (`sw`) or hardware-based video transcoding
     (`hw`).
 
     Software-based transcoding should work out of the box without further
@@ -81,12 +82,12 @@ Descriptions follow:
 
     If you find that your CPU resources can't keep up with your video ingestion
     requirements, you may want to consider using a hardware-based transcoding
-    solution. At time of writing, NVIDIA has support for accessing GPU resources
+    solution. At the time of writing, NVIDIA has support for accessing GPU resources
     from within Docker containers.
 
 *   `CAMERA_URI`, the URI of the video stream intended for ingestion. This
     should a) be a network location that is accessible from the host running
-    this ingestion service and b) a URI that is consumeable by `ffmpeg`. See
+    this ingestion service and b) a URI that is consumable by `ffmpeg`. See
     the [ffmpeg Protocols][ffmpeg-protocols] for details.
 
     To test whether your camera URI can be consumed by `ffmpeg`, run the
@@ -129,6 +130,26 @@ Descriptions follow:
     HTTP POST request.
 
 
+## Output
+
+By default, the repository will produce two types of output for one input
+stream:
+
+*   A directory of 10-minute MP4 clips, timestamped with the current date and
+    time.
+
+*   A directory of JPG images, timestamped with the current date and time.
+
+The configuration will output these directories within the `amsdata` Docker
+volume. This volume is created automatically with the `start.sh` scripts. This
+volume can then be mounted to othercontainers for further viewing and processing.
+
+An example can be seen with the `http-hosting` service that is invoked within
+the root `docker-compose.yml` file. This will host the directories and files
+within the `amsdata` volume over HTTP, making them available at port 8080. When
+running the root `docker-compose.yml`, you can access this HTTP server in your
+browser at <http://localhost:8080/>
+
 ## Extension
 
 By default, this repository is configured to ingest only a single camera (named
@@ -141,12 +162,15 @@ Additional cameras can be ingested by copying the `cam1` details from
 
 Note that with the default configuration for this repository, a `CAMERA_URI`
 variable is set in the root `.env`. With more than one camera ingestion, this
-will not be a suitable configuration. It is recommended instead to update the
-`.env` files at `/cameras/fwc/<camera>/.env` to reflect each camera's specific
-configuration, and to update the root `docker-compose.yml` file to not
-override the `CAMERA_URI` when invoking the new camera's configuration, but rely
-on the `.env` co-located with the camera's `docker-compose.yml`.
+will not be a suitable configuration.
 
+It is recommended instead to update the `.env` files at
+`/cameras/fwc/<camera>/.env` to reflect each camera's specific configuration,
+and to update the root `docker-compose.yml` file to not override the
+`CAMERA_URI` when invoking the new camera's configuration. With a configuration
+like this, cameras will rely upon the `.env` co-located with the camera's
+`docker-compose.yml`, and can therefore be configured individually (with their
+own `CAMERA_URI`, their own HTTP endpoints, or other necessary configuration).
 
 ----
 
