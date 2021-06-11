@@ -1,0 +1,109 @@
+version: '3'
+
+volumes:
+  axds-amsdata:
+    external: true
+
+services:
+
+  # Main RTSP server (rtsp-simple-server) that provides streaming / publishing
+  # services, as well as can be configured to either access source streams
+  # itself, or to rely on external publishers (say, FFMPEG configured to push
+  # an RTSP stream to this RTSP server).
+
+  rtsp:
+    image: "ams:latest"
+    profiles: ["sw","hw"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8554:8554" # TCP
+    environment:
+      RTSP_PATHS_AXDSSTREAM_RUNONPUBLISH: '
+        /usr/bin/docker-compose
+          --env-file /cameras/fwc/cam1/.env
+          -f /cameras/fwc/cam1/docker-compose.yml
+          --profile "hw-transcoders"
+          up --remove-orphans
+      '
+    restart: unless-stopped
+    command: /rtsp-simple-server /rtsp-simple-server.yml
+
+  # Publisher for source stream
+  publisher:
+    image: "ams:latest"
+    profiles: ["sw","hw"]
+    depends_on:
+      - rtsp
+    restart: unless-stopped
+    # dns: 8.8.8.8  # If camera is referenced by external DNS hostname
+    command: >
+      ffmpeg
+        -hide_banner
+        -loglevel warning
+        -re -stream_loop -1
+        -i "${CAMERA_URI}"
+        -fflags +genpts
+        -c:v copy -an
+        -f rtsp
+        rtsp://rtsp:8554/axdsstream
+
+  # Transcode
+  ffmpeg-transcode-cam1:
+   image: "ams:latest"
+   profiles: [ "hw-transcoders" ]
+   volumes:
+     - axds-amsdata:/video
+   restart: unless-stopped
+   deploy:
+     resources:
+       reservations:
+         devices:
+         - driver: nvidia
+           count: 1
+           capabilities: [gpu]
+   command: >
+     sh -c 'mkdir -p /video/stream/adaptive/fwc/cam1 /video/archive/jpg/fwc/cam1 /video/archive/mp4/fwc/cam1 \
+     && ffmpeg \
+       -hide_banner \
+       -loglevel error \
+       -hwaccel cuda \
+       -hwaccel_output_format cuda \
+       -c:v h264_cuvid \
+       -rtsp_transport tcp \
+       -i rtsp://rtsp:8554/axdsstream \
+       -c:v copy \
+       -f stream_segment \
+       -reset_timestamps 1 \
+       -segment_time 600 \
+       -segment_list_flags +live \
+       -r 25 -g 50 -sc_threshold 0 -flags +cgop -use_wallclock_as_timestamps 1 \
+       -segment_format_options movflags=+faststart+frag_keyframe+separate_moof+negative_cts_offsets+default_base_moof+empty_moov+delay_moov \
+       -metadata title="FWC Camera 1" \
+       -metadata location="27.943990579462042 -82.44520192148332" \
+       -strftime 1 "/video/archive/mp4/fwc/cam1/fwc-cam1-%Y-%m-%d-%H%M%SZ.mp4" \
+       -c:v mjpeg \
+       -filter:v "hwdownload,format=nv12,fps=fps=1/15" \
+       -f tee -y -map 0 -map 0 "[f=image2:update=1]/video/archive/jpg/fwc/cam1/fwc-cam1.jpg|[f=image2:strftime=1]/video/archive/jpg/fwc/cam1/fwc-cam1-%Y-%m-%d-%H%M%SZ.jpg"
+     '
+
+  jpg-inotify:
+    image: "ams:latest"
+    profiles: ["sw","hw"]
+    volumes:
+      - axds-amsdata:/video
+    restart: unless-stopped
+    command: >
+      bash -c 'mkdir -p /video/archive/jpg/fwc/ \
+      && inotifywait -m -r -e create --excludei "fwc-cam1.jpg" --format "%w%f" /video/archive/jpg/fwc/ | \
+        while read FN; do \
+          ( \
+            sleep 3; \
+            CAM_ID="FWC Cam 1"; \
+            DT=`date --utc   +"%Y-%m-%dT%H:%M:%SZ"`; \
+            BN=`basename $$FN`; \
+            X_AXIOM_EXTRA=`echo -n "{\\"camera_id\\":\\"$$CAM_ID\\",\\"filename\\":\\"$$BN\\",\\"timestamp\\":\\"$$DT\\"}" | base64`; \
+            RESULT=`curl --silent -o - -X POST -H "X-Axiom-Extra: $$X_AXIOM_EXTRA" -F "image=@$$FN" "${CORAL_SPAWN_PREDICT_ENDPOINT}"`; \
+            echo "[$$DT] $$FN -> $$RESULT"; \
+          ) & \
+        done'

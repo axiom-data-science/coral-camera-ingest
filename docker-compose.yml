@@ -1,0 +1,20 @@
+version: '3'
+
+volumes:
+  axds-amsdata:
+    external: true
+
+services:
+
+  fwc-cam1:
+    image: "ams:latest"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      CAMERA_URI: /sample/coral.mp4
+      CORAL_SPAWN_PREDICT_ENDPOINT: http://bentoml-coral-model.srv.axiomptk/predict
+    command: >
+      /usr/bin/docker-compose
+        -f /cameras/fwc/cam1/docker-compose.yml
+        --profile "hw"
+        up
