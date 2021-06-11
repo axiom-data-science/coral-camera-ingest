@@ -5,7 +5,10 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 source "$DIR/.env"
 
+DOCKER_PATH=`which docker`
+DOCKERCOMPOSE_PATH=`which docker-compose`
+
  # Create media server volume, build image, and run docker-compose
-docker volume create amsdata \
-    && docker build -t "$IMAGE_AMS" "$DIR" \
-    && docker-compose up
+$DOCKER_PATH volume create amsdata \
+    && $DOCKER_PATH build -t "$IMAGE_AMS" "$DIR" \
+    && $DOCKERCOMPOSE_PATH up
