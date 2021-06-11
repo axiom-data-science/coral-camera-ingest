@@ -24,8 +24,8 @@ services:
     environment:
       IMAGE_AMS: "${IMAGE_AMS}"
       SW_OR_HW: "${SW_OR_HW}"
-      CAMERA_URI: /sample/coral.mp4
-      CORAL_SPAWN_PREDICT_ENDPOINT: http://coral-spawn-service.local/predict
+      CAMERA_URI: "${SW_OR_HW}"
+      CORAL_SPAWN_PREDICT_ENDPOINT: "${CORAL_SPAWN_PREDICT_ENDPOINT}"
     command: >
       /usr/bin/docker-compose
         -f /cameras/fwc/cam1/docker-compose.yml
