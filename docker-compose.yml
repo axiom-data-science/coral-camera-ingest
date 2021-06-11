@@ -1,13 +1,15 @@
 version: '3'
 
 volumes:
-  axds-amsdata:
+  amsdata:
     external: true
 
 services:
 
   http-hosting:
-    image: "ams:latest"
+    image: "${IMAGE_AMS}"
+    environment:
+      IMAGE_AMS: "${IMAGE_AMS}"
     volumes:
         - /var/run/docker.sock:/var/run/docker.sock
     command: >
@@ -16,14 +18,16 @@ services:
           up
 
   fwc-cam1:
-    image: "ams:latest"
+    image: "${IMAGE_AMS}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
+      IMAGE_AMS: "${IMAGE_AMS}"
+      SW_OR_HW: "${SW_OR_HW}"
       CAMERA_URI: /sample/coral.mp4
       CORAL_SPAWN_PREDICT_ENDPOINT: http://coral-spawn-service.local/predict
     command: >
       /usr/bin/docker-compose
         -f /cameras/fwc/cam1/docker-compose.yml
-        --profile "hw"
+        --profile "${SW_OR_HW}"
         up

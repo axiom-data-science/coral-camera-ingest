@@ -1,7 +1,7 @@
 version: '3'
 
 volumes:
-  axds-amsdata:
+  amsdata:
     external: true
 
 services:
@@ -12,18 +12,20 @@ services:
   # an RTSP stream to this RTSP server).
 
   rtsp:
-    image: "ams:latest"
+    image: "${IMAGE_AMS}"
     profiles: ["sw","hw"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     # ports:
     #   - "8554:8554"
     environment:
+      IMAGE_AMS: "${IMAGE_AMS}"
+      SW_OR_HW: "${SW_OR_HW}"
       RTSP_PATHS_AXDSSTREAM_RUNONPUBLISH: '
         /usr/bin/docker-compose
           --env-file /cameras/fwc/cam1/.env
           -f /cameras/fwc/cam1/docker-compose.yml
-          --profile "hw-transcoders"
+          --profile "${SW_OR_HW}-transcoders"
           up --remove-orphans
       '
     restart: unless-stopped
@@ -31,7 +33,7 @@ services:
 
   # Publisher for source stream
   publisher:
-    image: "ams:latest"
+    image: "${IMAGE_AMS}"
     profiles: ["sw","hw"]
     depends_on:
       - rtsp
@@ -48,12 +50,12 @@ services:
         -f rtsp
         rtsp://rtsp:8554/axdsstream
 
-  # Transcode
-  ffmpeg-transcode-cam1:
-   image: "ams:latest"
+  # Transcode (using NVIDIA hardware acceleration)
+  ffmpeg-transcode-cam1-nvidia:
+   image: "${IMAGE_AMS}"
    profiles: [ "hw-transcoders" ]
    volumes:
-     - axds-amsdata:/video
+     - amsdata:/video
    restart: unless-stopped
    deploy:
      resources:
@@ -63,7 +65,7 @@ services:
            count: 1
            capabilities: [gpu]
    command: >
-     sh -c 'mkdir -p /video/stream/adaptive/fwc/cam1 /video/archive/jpg/fwc/cam1 /video/archive/mp4/fwc/cam1 \
+     sh -c 'mkdir -p /video/archive/jpg/fwc/cam1 /video/archive/mp4/fwc/cam1 \
      && ffmpeg \
        -hide_banner \
        -loglevel error \
@@ -87,11 +89,41 @@ services:
        -f tee -y -map 0 -map 0 "[f=image2:update=1]/video/archive/jpg/fwc/cam1/fwc-cam1.jpg|[f=image2:strftime=1]/video/archive/jpg/fwc/cam1/fwc-cam1-%Y-%m-%d-%H%M%SZ.jpg"
      '
 
-  jpg-inotify:
-    image: "ams:latest"
+  # Transcode (using NVIDIA hardware acceleration)
+  ffmpeg-transcode-cam1-sw:
+    image: "${IMAGE_AMS}"
+    profiles: [ "sw-transcoders" ]
+    volumes:
+      - amsdata:/video
+    restart: unless-stopped
+    command: >
+      sh -c 'mkdir -p /video/archive/jpg/fwc/cam1 /video/archive/mp4/fwc/cam1 \
+      && ffmpeg \
+        -hide_banner \
+        -loglevel error \
+        -c:v h264 \
+        -rtsp_transport tcp \
+        -i rtsp://rtsp:8554/axdsstream \
+        -c:v copy \
+        -f stream_segment \
+        -reset_timestamps 1 \
+        -segment_time 600 \
+        -segment_list_flags +live \
+        -sc_threshold 0 -flags +cgop -use_wallclock_as_timestamps 1 \
+        -segment_format_options movflags=+faststart+frag_keyframe+separate_moof+negative_cts_offsets+default_base_moof+empty_moov+delay_moov \
+        -metadata title="FWC Camera 1" \
+        -metadata location="27.943990579462042 -82.44520192148332" \
+        -strftime 1 "/video/archive/mp4/fwc/cam1/fwc-cam1-%Y-%m-%d-%H%M%SZ.mp4" \
+        -c:v mjpeg \
+        -filter:v "fps=fps=1/15" \
+        -f tee -y -map 0 -map 0 "[f=image2:update=1]/video/archive/jpg/fwc/cam1/fwc-cam1.jpg|[f=image2:strftime=1]/video/archive/jpg/fwc/cam1/fwc-cam1-%Y-%m-%d-%H%M%SZ.jpg"
+      '
+
+  jpg-inotify-to-predict:
+    image: "${IMAGE_AMS}"
     profiles: ["sw","hw"]
     volumes:
-      - axds-amsdata:/video
+      - amsdata:/video
     restart: unless-stopped
     command: >
       bash -c 'mkdir -p /video/archive/jpg/fwc/ \
@@ -104,6 +136,6 @@ services:
             BN=`basename $$FN`; \
             X_AXIOM_EXTRA=`echo -n "{\\"camera_id\\":\\"$$CAM_ID\\",\\"filename\\":\\"$$BN\\",\\"timestamp\\":\\"$$DT\\"}" | base64`; \
             RESULT=`curl --silent -o - -X POST -H "X-Axiom-Extra: $$X_AXIOM_EXTRA" -F "image=@$$FN" "${CORAL_SPAWN_PREDICT_ENDPOINT}"`; \
-            echo "[$$DT] $$FN -> $$RESULT"; \
+            echo "[$$DT] $$BN -> ${CORAL_SPAWN_PREDICT_ENDPOINT} ($$RESULT)"; \
           ) & \
         done'
