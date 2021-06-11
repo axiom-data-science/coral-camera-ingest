@@ -1,0 +1,5 @@
+name: fwc-ams
+channels:
+  - conda-forge
+dependencies:
+  - docker-compose
