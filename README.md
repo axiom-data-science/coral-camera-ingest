@@ -154,10 +154,10 @@ browser at <http://localhost:8080/>
 
 By default, this repository is configured to ingest only a single camera (named
 `cam1`). Its ingestion details are located under `/cameras/fwc/cam1`, and are
-built ingestion and available within the `fwc-ams:latest` image.
+built into and available within the `fwc-ams:latest` image.
 
 Additional cameras can be ingested by copying the `cam1` details from
-`/cameras/fwc/cam1`, and updating the `docker-compose.yml` under
+`/cameras/fwc/cam1`, and updating the `docker-compose.yml` and `.env` under
 `/cameras/fwc/new_camera` to fit with the details of the new camera.
 
 Note that with the default configuration for this repository, a `CAMERA_URI`
