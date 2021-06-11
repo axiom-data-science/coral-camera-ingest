@@ -18,6 +18,23 @@ ingestion of video streams as related to the FWC Coral Spawning project.
 *   **OPTIONAL**: A working [NVIDIA container runtime][nvidia-docker] to make
     use of hardware-accelerated video stream decoding and encoding.
 
+
+If you or your organization uses Anaconda (conda), a `environment.yml` file has
+been included at the root of this repository in the interest of providing a
+contained execution environment (without adversely affecting other application
+requirements).
+
+You can use this conda environment by doing the following:
+
+    # With your current directy at the root of this repository
+    conda env create
+
+    # Activate the environment
+    conda activate fwc-ams
+
+After activating, you should have access to `docker-compose` and other execution
+tools necessary for this repository.
+
 ## Usage
 
 Out of the box, you should be able to run the following command:
@@ -29,10 +46,12 @@ This will:
 *   Create the necessary Docker volume to provide storage for ingested video
     streams.
 
-*   Build a local Docker image to support the ingestion.
+*   Build a local Docker image to support the ingestion (named `fwc-ams:latest`
+    by default).
 
 *   Using `docker-compose`, start the processes necessary to ingest the
-    configured video stream (taking configuration from the `.env` file).
+    configured video stream (taking configuration from the `.env` file at the
+    root of this repository).
 
 ## Configuration
 
@@ -61,8 +80,8 @@ Descriptions follow:
     with additional streams.
 
     If you find that your CPU resources can't keep up with your video ingestion
-    requirements,you may want to consider using a hardware-based transcoding
-    solution. At time of writing, NVIDI has support for accessing GPU resources
+    requirements, you may want to consider using a hardware-based transcoding
+    solution. At time of writing, NVIDIA has support for accessing GPU resources
     from within Docker containers.
 
 *   `CAMERA_URI`, the URI of the video stream intended for ingestion. This
@@ -81,7 +100,7 @@ Descriptions follow:
     camera is valid and accessible, you should be presented with information
     about your camera's video feed.
 
-    A small sample video (`coral.mp4) is included with this repository to
+    A small sample video (`coral.mp4`) is included with this repository to
     provide a reference video that can be ingested without the need for
     consuming a live camera feed. When you are ready to consume a live camera
     feed, you can update the `CAMERA_URI` value to the URI of the live camera
@@ -91,7 +110,7 @@ Descriptions follow:
 
         docker run --rm -e "CAMERA_URI=/sample/coral.mp4" fwc-ams:latest bash -c 'ffprobe -hide_banner -i "$CAMERA_URI"'
 
-    Out of the above command is the following:
+    Output of the above command is the following:
 
         Input #0, mov,mp4,m4a,3gp,3g2,mj2, from '/sample/coral.mp4':
           Metadata:
@@ -112,20 +131,21 @@ Descriptions follow:
 
 ## Extension
 
-By default, this repository is configured to ingest only a single camera (cam1).
-Its ingestion details are located under `/cameras/fwc/cam1`, and are built
-ingestion and available within the `fwc-ams:latest` image.
+By default, this repository is configured to ingest only a single camera (named
+`cam1`). Its ingestion details are located under `/cameras/fwc/cam1`, and are
+built ingestion and available within the `fwc-ams:latest` image.
 
 Additional cameras can be ingested by copying the `cam1` details from
 `/cameras/fwc/cam1`, and updating the `docker-compose.yml` under
 `/cameras/fwc/new_camera` to fit with the details of the new camera.
 
-Note that with the default configuration for this repository, a CAMERA_URI
+Note that with the default configuration for this repository, a `CAMERA_URI`
 variable is set in the root `.env`. With more than one camera ingestion, this
 will not be a suitable configuration. It is recommended instead to update the
 `.env` files at `/cameras/fwc/<camera>/.env` to reflect each camera's specific
 configuration, and to update the root `docker-compose.yml` file to not
-override the `CAMERA_URI` when invoking the new camera's configuration.
+override the `CAMERA_URI` when invoking the new camera's configuration, but rely
+on the `.env` co-located with the camera's `docker-compose.yml`.
 
 
 ----
@@ -133,6 +153,8 @@ override the `CAMERA_URI` when invoking the new camera's configuration.
 [docker]: https://www.docker.com/
 
 [docker-compose]: https://docs.docker.com/compose/install/
+
+[nvidia-docker]: https://docs.docker.com/compose/gpu-support/
 
 [ffmpeg-protocols]: https://ffmpeg.org/ffmpeg-protocols.html
 
